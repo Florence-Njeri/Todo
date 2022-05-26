@@ -1,8 +1,8 @@
 from crypt import methods
 from urllib import request
-from flask import Flask, render_template, request, redirect, url_for 
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
-
+import sys
 
 app = Flask(__name__)
 db = SQLAlchemy(app)
@@ -23,11 +23,25 @@ def index():
 
 @app.route('/todos/create', methods=['POST'])
 def create_todo():
-    description=request.form.get('description', '')
-    todo_item=Todo(description=description )
-    db.session.add(todo_item )
-    db.session.commit()
-    return redirect(url_for('index'))
+    error = False
+    body = {}
+    try:
+        description = request.get_json()['description']
+        todo_item = Todo(description=description )
+        db.session.add(todo_item )
+        db.session.commit()
+        body['id'] = todo_item.id
+        body['description'] = todo_item.description
+    except:
+        error = True
+        db.session.rollback();
+        print(sys.exc_info())
+    finally:
+        db.session.close()
+        if error:
+            abort(400)
+        else:
+            return jsonify(body)
 
-if __name__ == '__main__':
-   app.run(host="0.0.0.0", port=3000)
+
+
